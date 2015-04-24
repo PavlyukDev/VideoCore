@@ -1,12 +1,9 @@
 Pod::Spec.new do |s|
   s.name                = "VideoCore"
-  s.version             = "0.3.1"
-  s.summary             = "An audio and video manipulation and streaming pipeline with support for RTMP."
+  s.version             = "0.3.1.1"
+  s.summary             = "Instantaneous Switch between front- and back-view cameras within one streaming session"
   s.description      = <<-DESC
-                          This is a work-in-progress library with the
-                          intention of being an audio and video manipulation
-                          and streaming pipeline for iOS.
-                          DESC
+                          Instantaneous Switch between front- and back-view cameras within one streaming session
   s.homepage            = "https://github.com/jgh-/VideoCore"
   s.license             = 'MIT'
   s.authors             = { "James Hurley" => "jamesghurley@gmail.com" }
