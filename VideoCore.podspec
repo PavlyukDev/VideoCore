@@ -4,6 +4,7 @@ Pod::Spec.new do |s|
   s.summary             = "Instantaneous Switch between front- and back-view cameras within one streaming session"
   s.description      = <<-DESC
                           Instantaneous Switch between front- and back-view cameras within one streaming session
+                        DESC
   s.homepage            = "https://github.com/jgh-/VideoCore"
   s.license             = 'MIT'
   s.authors             = { "James Hurley" => "jamesghurley@gmail.com" }
