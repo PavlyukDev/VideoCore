@@ -305,11 +305,14 @@ namespace videocore { namespace iOS {
             
             m_captureDevice = newCamera;
             [newCamera unlockForConfiguration];
+          
+        //    for instantaneous Switch between front- and back-view cameras within one streaming session
+            reorientCamera();
             [session commitConfiguration];
             
             [newVideoInput release];
             
-            reorientCamera();
+          
         }
     }
     
