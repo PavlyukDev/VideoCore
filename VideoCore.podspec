@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name                = "VideoCore"
-  s.version             = "0.3.1.1"
-  s.summary             = "Instantaneous Switch between front- and back-view cameras within one streaming session"
+  s.version             = "0.3.1.2"
+  s.summary             = "Fixed mirrored picture from front camera after toggle camera"
   s.description      = <<-DESC
                           Instantaneous Switch between front- and back-view cameras within one streaming session
                         DESC
