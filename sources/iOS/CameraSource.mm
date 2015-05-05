@@ -368,6 +368,8 @@ namespace videocore { namespace iOS {
                     default:
                         break;
                 }
+              //Fixed mirrored picture from front camera
+              av.videoMirrored = [(AVCaptureDeviceInput*)session.inputs.firstObject device].position == AVCaptureDevicePositionFront;
             }
         }
 
