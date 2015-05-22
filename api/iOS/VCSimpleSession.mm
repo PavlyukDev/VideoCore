@@ -57,7 +57,7 @@
 
 #include <sstream>
 
-
+static const float kDefaultExposure = 0.5;
 static const int kMinVideoBitrate = 32000;
 
 namespace videocore { namespace simpleApi {
@@ -143,6 +143,7 @@ namespace videocore { namespace simpleApi {
     BOOL _continuousExposure;
     CGPoint _focusPOI;
     CGPoint _exposurePOI;
+    float _exposureValue;
 
 }
 @property (nonatomic, readwrite) VCSessionState rtmpSessionState;
@@ -171,6 +172,7 @@ namespace videocore { namespace simpleApi {
 @dynamic exposurePointOfInterest;
 @dynamic useAdaptiveBitrate;
 @dynamic estimatedThroughput;
+@dynamic exposureBias;
 
 @dynamic previewView;
 // -----------------------------------------------------------------------------
@@ -346,6 +348,10 @@ namespace videocore { namespace simpleApi {
     }
 }
 
+- (BOOL) continuousExposure {
+    return _continuousExposure;
+}
+
 - (void) setFocusPointOfInterest:(CGPoint)focusPointOfInterest {
     _focusPOI = focusPointOfInterest;
 
@@ -360,6 +366,7 @@ namespace videocore { namespace simpleApi {
 {
     _exposurePOI = exposurePointOfInterest;
     if(m_cameraSource) {
+        m_cameraSource->setExposureValue(kDefaultExposure);
         m_cameraSource->setExposurePointOfInterest(exposurePointOfInterest.x, exposurePointOfInterest.y);
     }
 }
@@ -377,6 +384,18 @@ namespace videocore { namespace simpleApi {
 - (int) estimatedThroughput {
     return _estimatedThroughput;
 }
+
+- (void) setExposureBias:(float)exposureBias {
+    if(m_cameraSource) {
+      _exposureValue = exposureBias;
+      m_cameraSource->setExposureValue(exposureBias);
+    }
+}
+
+- (float)exposureBias {
+    return _exposureValue;
+}
+
 // -----------------------------------------------------------------------------
 //  Public Methods
 // -----------------------------------------------------------------------------
@@ -735,7 +754,16 @@ namespace videocore { namespace simpleApi {
         positionTransform->setOutput(m_videoMixer);
         m_aspectTransform = aspectTransform;
         m_positionTransform = positionTransform;
-
+        //TODO: - Send delegate
+/*
+        __weak typeof(self) weakSelf = self;
+        m_cameraSource->changeExposureCallback = [^{
+          NSLog(@"ChangeAutoexposure");
+          if ([weakSelf.delegate respondsToSelector:@selector(changeExposure)]) {
+            [weakSelf.delegate changeExposure];
+          }
+        } copy];*/
+      
         // Inform delegate that camera source has been added
         if ([_delegate respondsToSelector:@selector(didAddCameraSource:)]) {
             [_delegate didAddCameraSource:self];

@@ -70,6 +70,37 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     }
 }
 @end
+//TODO: - Observer property "adjustingExposure"
+/*
+@interface aeCallback : NSObject
+{
+  std::weak_ptr<videocore::iOS::CameraSource> m_source;
+}
+- (void) setSource:(std::weak_ptr<videocore::iOS::CameraSource>) source;
+@end
+
+@implementation aeCallback
+
+-(void) setSource:(std::weak_ptr<videocore::iOS::CameraSource>)source
+{
+  m_source = source;
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+  if( [keyPath isEqualToString:@"adjustingExposure"]){
+    BOOL adjustingEposure = [[change objectForKey:NSKeyValueChangeNewKey] isEqualToNumber:[NSNumber numberWithInt:1]];
+    NSLog(@"Is adjusting exposure? %@", adjustingEposure ? @"YES" : @"NO" );
+    auto source = m_source.lock();
+    if(source && source->changeExposureCallback != NULL && adjustingEposure) {
+      source->changeExposureCallback();
+      source->testMethod();
+    }
+    NSLog(@"Change dictionary: %@", change);
+  }
+}
+
+@end
+*/
 namespace videocore { namespace iOS {
     
 
@@ -130,7 +161,12 @@ namespace videocore { namespace iOS {
                             [d unlockForConfiguration];
                         }
                     }
-                    
+                  //TODO: Add observing exposure value
+                  /*
+                    m_callbackAutoExposure = [aeCallback new];
+                    [(aeCallback *)m_callbackAutoExposure setSource:shared_from_this()];
+                    [(AVCaptureDevice *)m_captureDevice addObserver:(aeCallback *)m_callbackAutoExposure forKeyPath:@"adjustingExposure" options:NSKeyValueObservingOptionNew context:nil];
+                  */
                     AVCaptureSession* session = [[AVCaptureSession alloc] init];
                     AVCaptureDeviceInput* input;
                     AVCaptureVideoDataOutput* output;
@@ -494,6 +530,42 @@ namespace videocore { namespace iOS {
         
         return ret;
     }
-    
+  
+    bool
+    CameraSource::setExposureValue(float exposure)
+    {
+      AVCaptureDevice* device = (AVCaptureDevice*)m_captureDevice;
+      bool ret = device.exposurePointOfInterestSupported;
+      
+      if(ret) {
+        NSError* err = nil;
+        if([device lockForConfiguration:&err]) {
+          //change exposure
+          float minExposure = device.minExposureTargetBias/2;
+          float maxExposure = device.maxExposureTargetBias/2;
+          float targetExposure = exposure * (maxExposure - minExposure) + minExposure;
+          [device setExposureTargetBias:targetExposure completionHandler:nil];
+          
+          //TODO: - change iso
+        /*
+          float minIso = device.activeFormat.minISO;
+          float maxIso = device.activeFormat.maxISO;
+          float targetIso = exposure * (maxIso - minIso) + minIso;
+          
+          NSLog(@"Min - %f, Max - %f, exposure - %f", minIso, maxIso, targetIso);
+          
+          [device setExposureModeCustomWithDuration:AVCaptureExposureDurationCurrent ISO:targetIso completionHandler:nil];
+          */
+          [device unlockForConfiguration];
+        } else {
+          NSLog(@"Error while locking device for exposure POI: %@", err);
+          ret = false;
+        }
+      } else {
+          NSLog(@"Exposure POI not supported");
+      }
+      
+      return ret;
+    }
 }
 }

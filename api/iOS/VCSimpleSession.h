@@ -67,6 +67,7 @@ typedef NS_ENUM(NSInteger, VCAspectMode)
 @optional
 - (void) didAddCameraSource:(VCSimpleSession*)session;
 - (void) detectedThroughput: (NSInteger) throughputInBytesPerSecond;
+//- (void) changeExposure;
 @end
 
 @interface VCSimpleSession : NSObject
@@ -93,6 +94,7 @@ typedef NS_ENUM(NSInteger, VCAspectMode)
 @property (nonatomic, assign) BOOL          useAdaptiveBitrate;     /* Default is off */
 @property (nonatomic, readonly) int         estimatedThroughput;    /* Bytes Per Second. */
 @property (nonatomic, assign) VCAspectMode  aspectMode;
+@property (nonatomic, assign) float         exposureBias;
 
 @property (nonatomic, assign) id<VCSessionDelegate> delegate;
 
