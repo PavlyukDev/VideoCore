@@ -206,8 +206,9 @@ namespace videocore { namespace Apple {
         
         if(err == noErr) {
             m_compressionSession = session;
-            
-            const int32_t v = m_fps * 2; // 2-second kfi
+          
+            // NOTE: Change keyframe from m_fps * 2 to m_fps
+            const int32_t v = m_fps; // 1-second kfi
             
             CFNumberRef ref = CFNumberCreate(NULL, kCFNumberSInt32Type, &v);
             err = VTSessionSetProperty(session, kVTCompressionPropertyKey_MaxKeyFrameInterval, ref);
