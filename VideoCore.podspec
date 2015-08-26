@@ -1,9 +1,9 @@
 Pod::Spec.new do |s|
   s.name                = "VideoCore"
-  s.version             = "0.3.1.2"
-  s.summary             = "Fixed mirrored picture from front camera after toggle camera"
+  s.version             = "0.3.1.3"
+  s.summary             = "Changed the keyframe"
   s.description      = <<-DESC
-                          Instantaneous Switch between front- and back-view cameras within one streaming session
+                          Changed the kyframe from 2 to 1 second
                         DESC
   s.homepage            = "https://github.com/jgh-/VideoCore"
   s.license             = 'MIT'
