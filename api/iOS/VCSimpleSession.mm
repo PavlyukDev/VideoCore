@@ -521,7 +521,10 @@ namespace videocore { namespace simpleApi {
     [_previewView release];
     _previewView = nil;
 
-    dispatch_release(_graphManagementQueue);
+    if (_graphManagementQueue)
+    {
+        dispatch_release(_graphManagementQueue);
+    }
 
     [super dealloc];
 }
