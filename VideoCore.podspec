@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name                = "VideoCore"
-  s.version             = "0.3.1.3"
+  s.version             = "0.3.1.4"
   s.summary             = "Changed the keyframe"
   s.description      = <<-DESC
                           Changed the kyframe from 2 to 1 second
