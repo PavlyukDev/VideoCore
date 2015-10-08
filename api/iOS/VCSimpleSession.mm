@@ -656,18 +656,22 @@ namespace videocore { namespace simpleApi {
 }
 - (void) endRtmpSession
 {
-
-    m_h264Packetizer.reset();
-    m_aacPacketizer.reset();
-    m_videoSplit->removeOutput(m_h264Encoder);
-    m_h264Encoder.reset();
-    m_aacEncoder.reset();
-
-    m_outputSession.reset();
-
-    _bitrate = _bpsCeiling;
-
-    self.rtmpSessionState = VCSessionStateEnded;
+  __block VCSimpleSession* bSelf = self;
+  
+  dispatch_async(_graphManagementQueue, ^{
+    
+    bSelf->m_h264Packetizer.reset();
+    bSelf->m_aacPacketizer.reset();
+    bSelf->m_videoSplit->removeOutput(bSelf->m_h264Encoder);
+    bSelf->m_h264Encoder.reset();
+    bSelf->m_aacEncoder.reset();
+    
+    bSelf->m_outputSession.reset();
+    
+    bSelf.bitrate = bSelf->_bpsCeiling;
+    
+    bSelf.rtmpSessionState = VCSessionStateEnded;
+  });
 }
 - (void) getCameraPreviewLayer:(AVCaptureVideoPreviewLayer **)previewLayer {
     if(m_cameraSource) {
