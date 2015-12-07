@@ -31,7 +31,6 @@
 #include <CoreVideo/CoreVideo.h>
 #include <glm/glm.hpp>
 
-typedef void (*ChangeExposureCallback)(void);
 
 namespace videocore { namespace iOS {
     
@@ -65,8 +64,10 @@ namespace videocore { namespace iOS {
          *  \param fps      Optional parameter to set the output frames per second.
          *  \param useFront Start with the front-facing camera
          *  \param useInterfaceOrientation whether to use interface or device orientation as reference for video capture orientation
+         *  \param sessionPreset name of the preset to use for the capture session
+         *  \param callbackBlock block to be called after everything is set
          */
-        void setupCamera(int fps = 15, bool useFront = true, bool useInterfaceOrientation = false, NSString* sessionPreset = nil);
+        void setupCamera(int fps = 15, bool useFront = true, bool useInterfaceOrientation = false, NSString* sessionPreset = nil, void (^callbackBlock)(void) = nil);
 
         
         /*!
@@ -112,11 +113,9 @@ namespace videocore { namespace iOS {
         bool setExposurePointOfInterest(float x, float y);
         
         bool setContinuousExposure(bool wantsContinuous);
-      
+        
         bool setExposureValue(float exposure);
-      
-//        dispatch_block_t changeExposureCallback;
-      
+		
     public:
         /*! Used by Objective-C Capture Session */
         void bufferCaptured(CVPixelBufferRef pixelBufferRef);
@@ -141,12 +140,12 @@ namespace videocore { namespace iOS {
         struct { float x, y, w, h, vw, vh, a; } m_size, m_targetSize;
         
         std::weak_ptr<IOutput> m_output;
-      
+        
         void* m_captureSession;
         void* m_captureDevice;
         void* m_callbackSession;
         void* m_previewLayer;
-      
+        
         int  m_fps;
         bool m_torchOn;
         bool m_useInterfaceOrientation;

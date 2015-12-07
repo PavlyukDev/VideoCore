@@ -57,6 +57,7 @@
 
 #include <sstream>
 
+
 static const float kDefaultExposure = 0.5;
 static const int kMinVideoBitrate = 32000;
 
@@ -143,8 +144,9 @@ namespace videocore { namespace simpleApi {
     BOOL _continuousExposure;
     CGPoint _focusPOI;
     CGPoint _exposurePOI;
-    float _exposureValue;
-
+	float _exposureValue;
+    
+    VCFilter _filter;
 }
 @property (nonatomic, readwrite) VCSessionState rtmpSessionState;
 
@@ -265,9 +267,12 @@ namespace videocore { namespace simpleApi {
 - (void) setRtmpSessionState:(VCSessionState)rtmpSessionState
 {
     _rtmpSessionState = rtmpSessionState;
-    if(self.delegate) {
-        [self.delegate connectionStatusChanged:rtmpSessionState];
-    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // trigger in main thread, avoid autolayout engine exception
+        if(self.delegate) {
+                [self.delegate connectionStatusChanged:rtmpSessionState];
+        }
+    });
 }
 - (VCSessionState) rtmpSessionState
 {
@@ -292,10 +297,10 @@ namespace videocore { namespace simpleApi {
 }
 - (void) setAudioChannelCount:(int)channelCount
 {
-    _audioChannelCount = MIN(2, MAX(channelCount,2)); // We can only support a channel count of 2 with AAC
+    _audioChannelCount = MAX(1, MIN(channelCount, 2));
 
     if(m_audioMixer) {
-        m_audioMixer->setChannelCount(channelCount);
+        m_audioMixer->setChannelCount(_audioChannelCount);
     }
 }
 - (int) audioChannelCount
@@ -356,6 +361,7 @@ namespace videocore { namespace simpleApi {
     _focusPOI = focusPointOfInterest;
 
     if(m_cameraSource) {
+		m_cameraSource->setExposureValue(kDefaultExposure);
         m_cameraSource->setFocusPointOfInterest(focusPointOfInterest.x, focusPointOfInterest.y);
     }
 }
@@ -366,7 +372,6 @@ namespace videocore { namespace simpleApi {
 {
     _exposurePOI = exposurePointOfInterest;
     if(m_cameraSource) {
-        m_cameraSource->setExposureValue(kDefaultExposure);
         m_cameraSource->setExposurePointOfInterest(exposurePointOfInterest.x, exposurePointOfInterest.y);
     }
 }
@@ -544,7 +549,7 @@ namespace videocore { namespace simpleApi {
 {
     std::stringstream uri ;
     uri << (rtmpUrl ? [rtmpUrl UTF8String] : "") << "/" << (streamKey ? [streamKey UTF8String] : "");
-
+    
     m_outputSession.reset(
                           new videocore::RTMPSession ( uri.str(),
                                                       [=](videocore::RTMPSession& session,
@@ -571,7 +576,6 @@ namespace videocore { namespace simpleApi {
                                                               case kClientStateError:
                                                                   self.rtmpSessionState = VCSessionStateError;
                                                                   [self endRtmpSession];
-                                                                  self->m_outputSession.reset();
                                                                   break;
                                                               case kClientStateNotConnected:
                                                                   self.rtmpSessionState = VCSessionStateEnded;
@@ -599,9 +603,13 @@ namespace videocore { namespace simpleApi {
                                               auto audio = std::dynamic_pointer_cast<videocore::IEncoder>( bSelf->m_aacEncoder );
                                               if(video && audio && bSelf.useAdaptiveBitrate) {
 
-                                                  if([bSelf.delegate respondsToSelector:@selector(detectedThroughput:)]) {
+                                                  if ([bSelf.delegate respondsToSelector:@selector(detectedThroughput:)]) {
                                                       [bSelf.delegate detectedThroughput:predicted];
                                                   }
+                                                  if ([bSelf.delegate respondsToSelector:@selector(detectedThroughput:videoRate:)]) {
+                                                      [bSelf.delegate detectedThroughput:predicted videoRate:video->bitrate()];
+                                                  }
+
 
                                                   int videoBr = 0;
 
@@ -656,6 +664,7 @@ namespace videocore { namespace simpleApi {
 }
 - (void) endRtmpSession
 {
+	
   __block VCSimpleSession* bSelf = self;
   
   dispatch_async(_graphManagementQueue, ^{
@@ -678,6 +687,40 @@ namespace videocore { namespace simpleApi {
         m_cameraSource->getPreviewLayer((void**)previewLayer);
     }
 }
+
+//Set property filter for the new enum + set dynamically the sourceFilter for the video mixer
+- (void)setFilter:(VCFilter)filterToChange {
+        NSString *filterName = @"com.videocore.filters.bgra";
+        
+        switch (filterToChange) {
+            case VCFilterNormal:
+                filterName = @"com.videocore.filters.bgra";
+                break;
+            case VCFilterGray:
+                filterName = @"com.videocore.filters.grayscale";
+                break;
+            case VCFilterInvertColors:
+                filterName = @"com.videocore.filters.invertColors";
+                break;
+            case VCFilterSepia:
+                filterName = @"com.videocore.filters.sepia";
+                break;
+            case VCFilterFisheye:
+                filterName = @"com.videocore.filters.fisheye";
+                break;
+            case VCFilterGlow:
+                filterName = @"com.videocore.filters.glow";
+                break;
+            default:
+                break;
+        }
+        
+        _filter = filterToChange;
+        NSLog(@"FILTER IS : [%d]", (int)_filter);
+        std::string convertString([filterName UTF8String]);
+        m_videoMixer->setSourceFilter(m_cameraSource, dynamic_cast<videocore::IVideoFilter*>(m_videoMixer->filterFactory().filter(convertString))); // default is com.videocore.filters.bgra
+}
+
 // -----------------------------------------------------------------------------
 //  Private Methods
 // -----------------------------------------------------------------------------
@@ -749,19 +792,21 @@ namespace videocore { namespace simpleApi {
                                                                                 self.videoSize.width, self.videoSize.height
                                                                                 );
 
-        std::dynamic_pointer_cast<videocore::iOS::CameraSource>(m_cameraSource)->setupCamera(self.fps,(self.cameraState == VCCameraStateFront),self.useInterfaceOrientation);
 
-        m_cameraSource->setContinuousAutofocus(true);
-        m_cameraSource->setContinuousExposure(true);
+        std::dynamic_pointer_cast<videocore::iOS::CameraSource>(m_cameraSource)->setupCamera(self.fps,(self.cameraState == VCCameraStateFront),self.useInterfaceOrientation,nil,^{
+            m_cameraSource->setContinuousAutofocus(true);
+            m_cameraSource->setContinuousExposure(true);
 
-        m_cameraSource->setOutput(aspectTransform);
+            m_cameraSource->setOutput(aspectTransform);
 
-        m_videoMixer->setSourceFilter(m_cameraSource, dynamic_cast<videocore::IVideoFilter*>(m_videoMixer->filterFactory().filter("com.videocore.filters.bgra")));
-        aspectTransform->setOutput(positionTransform);
-        positionTransform->setOutput(m_videoMixer);
-        m_aspectTransform = aspectTransform;
-        m_positionTransform = positionTransform;
-        //TODO: - Send delegate
+            m_videoMixer->setSourceFilter(m_cameraSource, dynamic_cast<videocore::IVideoFilter*>(m_videoMixer->filterFactory().filter("com.videocore.filters.bgra")));
+            _filter = VCFilterNormal;
+            aspectTransform->setOutput(positionTransform);
+            positionTransform->setOutput(m_videoMixer);
+            m_aspectTransform = aspectTransform;
+            m_positionTransform = positionTransform;
+
+			//TODO: - Send delegate
 /*
         __weak typeof(self) weakSelf = self;
         m_cameraSource->changeExposureCallback = [^{
@@ -771,10 +816,11 @@ namespace videocore { namespace simpleApi {
           }
         } copy];*/
       
-        // Inform delegate that camera source has been added
-        if ([_delegate respondsToSelector:@selector(didAddCameraSource:)]) {
-            [_delegate didAddCameraSource:self];
-        }
+            // Inform delegate that camera source has been added
+            if ([_delegate respondsToSelector:@selector(didAddCameraSource:)]) {
+                [_delegate didAddCameraSource:self];
+            }
+        });
     }
     {
         // Add mic source

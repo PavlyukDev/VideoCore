@@ -134,7 +134,7 @@ namespace videocore { namespace iOS {
     }
     
     void
-    CameraSource::setupCamera(int fps, bool useFront, bool useInterfaceOrientation, NSString* sessionPreset)
+    CameraSource::setupCamera(int fps, bool useFront, bool useInterfaceOrientation, NSString* sessionPreset, void (^callbackBlock)(void))
     {
         m_fps = fps;
         m_useInterfaceOrientation = useInterfaceOrientation;
@@ -161,6 +161,7 @@ namespace videocore { namespace iOS {
                             [d unlockForConfiguration];
                         }
                     }
+                    
                   //TODO: Add observing exposure value
                   /*
                     m_callbackAutoExposure = [aeCallback new];
@@ -221,6 +222,9 @@ namespace videocore { namespace iOS {
                         }
                     }
                     [output release];
+                }
+                if (callbackBlock) {
+                    callbackBlock();
                 }
             }
         };
@@ -289,21 +293,26 @@ namespace videocore { namespace iOS {
         AVCaptureSession* session = (AVCaptureSession*)m_captureSession;
         
         [session beginConfiguration];
-        AVCaptureDeviceInput* currentCameraInput = [session.inputs objectAtIndex:0];
         
-        if(currentCameraInput.device.torchAvailable) {
-            NSError* err = nil;
-            if([currentCameraInput.device lockForConfiguration:&err]) {
-                [currentCameraInput.device setTorchMode:( torchOn ? AVCaptureTorchModeOn : AVCaptureTorchModeOff ) ];
-                [currentCameraInput.device unlockForConfiguration];
-                ret = (currentCameraInput.device.torchMode == AVCaptureTorchModeOn);
+        if (session.inputs.count > 0) {
+            AVCaptureDeviceInput* currentCameraInput = [session.inputs objectAtIndex:0];
+            
+            if(currentCameraInput.device.torchAvailable) {
+                NSError* err = nil;
+                if([currentCameraInput.device lockForConfiguration:&err]) {
+                    [currentCameraInput.device setTorchMode:( torchOn ? AVCaptureTorchModeOn : AVCaptureTorchModeOff ) ];
+                    [currentCameraInput.device unlockForConfiguration];
+                    ret = (currentCameraInput.device.torchMode == AVCaptureTorchModeOn);
+                } else {
+                    NSLog(@"Error while locking device for torch: %@", err);
+                    ret = false;
+                }
             } else {
-                NSLog(@"Error while locking device for torch: %@", err);
-                ret = false;
+                NSLog(@"Torch not available in current camera input");
             }
-        } else {
-            NSLog(@"Torch not available in current camera input");
+
         }
+        
         [session commitConfiguration];
         m_torchOn = ret;
         return ret;
@@ -320,35 +329,36 @@ namespace videocore { namespace iOS {
             [session beginConfiguration];
             [(AVCaptureDevice*)m_captureDevice lockForConfiguration: &error];
             
-            AVCaptureInput* currentCameraInput = [session.inputs objectAtIndex:0];
-            
-            [session removeInput:currentCameraInput];
-            [(AVCaptureDevice*)m_captureDevice unlockForConfiguration];
-            
-            AVCaptureDevice *newCamera = nil;
-            if(((AVCaptureDeviceInput*)currentCameraInput).device.position == AVCaptureDevicePositionBack)
-            {
-                newCamera = (AVCaptureDevice*)cameraWithPosition(AVCaptureDevicePositionFront);
+            if (session.inputs.count > 0) {
+                AVCaptureInput* currentCameraInput = [session.inputs objectAtIndex:0];
+                
+                [session removeInput:currentCameraInput];
+                [(AVCaptureDevice*)m_captureDevice unlockForConfiguration];
+                
+                AVCaptureDevice *newCamera = nil;
+                if(((AVCaptureDeviceInput*)currentCameraInput).device.position == AVCaptureDevicePositionBack)
+                {
+                    newCamera = (AVCaptureDevice*)cameraWithPosition(AVCaptureDevicePositionFront);
+                }
+                else
+                {
+                    newCamera = (AVCaptureDevice*)cameraWithPosition(AVCaptureDevicePositionBack);
+                }
+                
+                AVCaptureDeviceInput *newVideoInput = [[AVCaptureDeviceInput alloc] initWithDevice:newCamera error:nil];
+                [newCamera lockForConfiguration:&error];
+                [session addInput:newVideoInput];
+                
+                m_captureDevice = newCamera;
+                [newCamera unlockForConfiguration];
+    
+                // For instantaneous Switch between front- and back-view cameras within one streaming session
+                reorientCamera();
+
+                [session commitConfiguration];
+                
+                [newVideoInput release];
             }
-            else
-            {
-                newCamera = (AVCaptureDevice*)cameraWithPosition(AVCaptureDevicePositionBack);
-            }
-            
-            AVCaptureDeviceInput *newVideoInput = [[AVCaptureDeviceInput alloc] initWithDevice:newCamera error:nil];
-            [newCamera lockForConfiguration:&error];
-            [session addInput:newVideoInput];
-            
-            m_captureDevice = newCamera;
-            [newCamera unlockForConfiguration];
-          
-        //    for instantaneous Switch between front- and back-view cameras within one streaming session
-            reorientCamera();
-            [session commitConfiguration];
-            
-            [newVideoInput release];
-            
-          
         }
     }
     
@@ -405,7 +415,7 @@ namespace videocore { namespace iOS {
                         break;
                 }
               //Fixed mirrored picture from front camera
-              av.videoMirrored = [(AVCaptureDeviceInput*)session.inputs.firstObject device].position == AVCaptureDevicePositionFront;
+                av.videoMirrored = [(AVCaptureDeviceInput*)session.inputs.firstObject device].position == AVCaptureDevicePositionFront;
             }
         }
 
@@ -495,6 +505,9 @@ namespace videocore { namespace iOS {
             NSError* err = nil;
             if([device lockForConfiguration:&err]) {
                 [device setFocusPointOfInterest:CGPointMake(x, y)];
+                if (device.focusMode == AVCaptureFocusModeLocked) {
+                    [device setFocusMode:AVCaptureFocusModeAutoFocus];
+                }
                 device.focusMode = device.focusMode;
                 [device unlockForConfiguration];
             } else {
@@ -530,7 +543,7 @@ namespace videocore { namespace iOS {
         
         return ret;
     }
-  
+    
     bool
     CameraSource::setExposureValue(float exposure)
     {
