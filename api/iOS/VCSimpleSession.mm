@@ -107,13 +107,13 @@ namespace videocore { namespace simpleApi {
     std::shared_ptr<videocore::ITransform>  m_aacEncoder;
     std::shared_ptr<videocore::ITransform>  m_h264Packetizer;
     std::shared_ptr<videocore::ITransform>  m_aacPacketizer;
-
+    
     std::shared_ptr<videocore::Split>       m_aacSplit;
     std::shared_ptr<videocore::Split>       m_h264Split;
     std::shared_ptr<videocore::Apple::MP4Multiplexer> m_muxer;
 
     std::shared_ptr<videocore::IOutputSession> m_outputSession;
-
+    
 
     // properties
 
@@ -147,6 +147,7 @@ namespace videocore { namespace simpleApi {
 
 }
 @property (nonatomic, readwrite) VCSessionState rtmpSessionState;
+@property (nonatomic, readonly) videocore::Apple::H264EncodeProfileLevel m_h264PacketizerProfileLevel;
 
 - (void) setupGraph;
 
@@ -791,6 +792,29 @@ namespace videocore { namespace simpleApi {
 
     }
 }
+
+- (videocore::Apple::H264EncodeProfileLevel)m_h264PacketizerProfileLevel
+{
+    videocore::Apple::H264EncodeProfileLevel level;
+    
+    switch (self.packetizerProfileLevel) {
+        case VCPacketizerProfileLevelBaseline:
+            level = videocore::Apple::kBase;
+            break;
+        case VCPacketizerProfileLevelMain:
+            level = videocore::Apple::kMain;
+            break;
+        case VCPacketizerProfileLevelHigh:
+            level = videocore::Apple::kHigh;
+            break;
+        default:
+            throw;
+            break;
+    }
+    
+    return level;
+}
+
 - (void) addEncodersAndPacketizers
 {
     int ctsOffset = 2000 / self.fps; // 2 * frame duration
@@ -800,11 +824,12 @@ namespace videocore { namespace simpleApi {
         m_aacEncoder = std::make_shared<videocore::iOS::AACEncode>(self.audioSampleRate, self.audioChannelCount, 96000);
         if(SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"8.0")) {
             // If >= iOS 8.0 use the VideoToolbox encoder that does not write to disk.
+          
             m_h264Encoder = std::make_shared<videocore::Apple::H264Encode>(self.videoSize.width,
                                                                            self.videoSize.height,
                                                                            self.fps,
                                                                            self.bitrate,
-                                                                           false,
+                                                                           self.m_h264PacketizerProfileLevel,
                                                                            ctsOffset);
         } else {
             m_h264Encoder =std::make_shared<videocore::iOS::H264Encode>(self.videoSize.width,

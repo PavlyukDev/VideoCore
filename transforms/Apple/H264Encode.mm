@@ -100,10 +100,11 @@ namespace videocore { namespace Apple {
         
     }
 #endif
-    H264Encode::H264Encode( int frame_w, int frame_h, int fps, int bitrate, bool useBaseline, int ctsOffset)
+  
+    H264Encode::H264Encode( int frame_w, int frame_h, int fps, int bitrate, H264EncodeProfileLevel level, int ctsOffset)
     : m_frameW(frame_w), m_frameH(frame_h), m_fps(fps), m_bitrate(bitrate), m_forceKeyframe(false), m_ctsOffset(ctsOffset)
     {
-        setupCompressionSession( useBaseline );
+        setupCompressionSession( level );
     }
     H264Encode::~H264Encode()
     {
@@ -145,9 +146,9 @@ namespace videocore { namespace Apple {
 #endif
     }
     void
-    H264Encode::setupCompressionSession( bool useBaseline )
+    H264Encode::setupCompressionSession( H264EncodeProfileLevel level )
     {
-        m_baseline = useBaseline;
+        m_profileLevel = level;
         
 #if VERSION_OK
         // Parts of this code pulled from https://github.com/galad87/HandBrake-QuickSync-Mac/blob/2c1332958f7095c640cbcbcb45ffc955739d5945/libhb/platform/macosx/encvt_h264.c
@@ -223,7 +224,7 @@ namespace videocore { namespace Apple {
         }
         
         if(err == noErr) {
-            CFBooleanRef allowFrameReodering = useBaseline ? kCFBooleanFalse : kCFBooleanTrue;
+            CFBooleanRef allowFrameReodering = level == kBase ? kCFBooleanFalse : kCFBooleanTrue;
             err = VTSessionSetProperty(session , kVTCompressionPropertyKey_AllowFrameReordering, allowFrameReodering);
         }
         
@@ -239,11 +240,25 @@ namespace videocore { namespace Apple {
         }
         
         if(err == noErr) {
-            CFStringRef profileLevel = useBaseline ? kVTProfileLevel_H264_Baseline_AutoLevel : kVTProfileLevel_H264_Main_AutoLevel;
-            
-            err = VTSessionSetProperty(session, kVTCompressionPropertyKey_ProfileLevel, profileLevel);
+          CFStringRef profileLevel;
+          
+          switch (level) {
+            case kBase:
+              profileLevel = kVTProfileLevel_H264_Baseline_AutoLevel;
+              break;
+            case kMain:
+              profileLevel = kVTProfileLevel_H264_Main_AutoLevel;
+              break;
+            case kHigh:
+              profileLevel = kVTProfileLevel_H264_High_AutoLevel;
+              break;
+            default:
+              throw;
+          }
+          
+          err = VTSessionSetProperty(session, kVTCompressionPropertyKey_ProfileLevel, profileLevel);
         }
-        if(!useBaseline) {
+        if(level != kBase) {
             VTSessionSetProperty(session, kVTCompressionPropertyKey_H264EntropyMode, kVTH264EntropyMode_CABAC);
         }
         if(err == noErr) {

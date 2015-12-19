@@ -60,6 +60,12 @@ typedef NS_ENUM(NSInteger, VCAspectMode)
     VCAscpectModeFill
 };
 
+typedef NS_ENUM(NSInteger, VCPacketizerProfileLevel)
+{
+    VCPacketizerProfileLevelBaseline,
+    VCPacketizerProfileLevelMain,
+    VCPacketizerProfileLevelHigh
+};
 
 @protocol VCSessionDelegate <NSObject>
 @required
@@ -79,6 +85,7 @@ typedef NS_ENUM(NSInteger, VCAspectMode)
 @property (nonatomic, assign) CGSize            videoSize;      // Change will not take place until the next RTMP Session
 @property (nonatomic, assign) int               bitrate;        // Change will not take place until the next RTMP Session
 @property (nonatomic, assign) int               fps;            // Change will not take place until the next RTMP Session
+@property (nonatomic, assign) VCPacketizerProfileLevel  packetizerProfileLevel; // Change will not take place until the next RTMP Session
 @property (nonatomic, assign, readonly) BOOL    useInterfaceOrientation;
 @property (nonatomic, assign) VCCameraState cameraState;
 @property (nonatomic, assign) BOOL          orientationLocked;
