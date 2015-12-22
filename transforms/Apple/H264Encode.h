@@ -26,11 +26,13 @@
 #include <CoreVideo/CoreVideo.h>
 
 namespace videocore { namespace Apple {
- 
+
+    enum H264EncodeProfileLevel { kBase, kMain, kHigh };
+  
     class H264Encode : public IEncoder
     {
     public:
-        H264Encode( int frame_w, int frame_h, int fps, int bitrate, bool useBaseline = true, int ctsOffset = 0 );
+        H264Encode( int frame_w, int frame_h, int fps, int bitrate, H264EncodeProfileLevel level = kBase, int ctsOffset = 0 );
         ~H264Encode();
         
         CVPixelBufferPoolRef pixelBufferPool();
@@ -54,7 +56,7 @@ namespace videocore { namespace Apple {
         void compressionSessionOutput(const uint8_t* data, size_t size, uint64_t pts, uint64_t dts);
         
     private:
-        void setupCompressionSession( bool useBaseline );
+        void setupCompressionSession( H264EncodeProfileLevel level );
         void teardownCompressionSession();
         
     private:
@@ -71,7 +73,7 @@ namespace videocore { namespace Apple {
         
         int                    m_ctsOffset;
 
-        bool                   m_baseline;
+        H264EncodeProfileLevel m_profileLevel;
         bool                   m_forceKeyframe;
     };
 }
